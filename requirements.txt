@@ -1,0 +1,8 @@
+torch
+transformers
+pillow
+pytesseract
+sentencepiece
+gtts
+playsound3
+pandas
