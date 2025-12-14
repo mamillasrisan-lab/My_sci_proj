@@ -58,14 +58,19 @@ elif camera_image:
     image = Image.open(camera_image)
 
 # -----------------------------
+# INITIALIZE VARIABLES
+# -----------------------------
+ocr_text = ""
+caption = ""
+
+# -----------------------------
 # IMAGE DISPLAY + OCR + CAPTION
 # -----------------------------
 if image:
-    st.image(image, caption="Selected Image", use_container_width=True)
+    st.image(image, caption="Selected Image", width="stretch")
 
     # OCR
     st.subheader("2️⃣ OCR Text Extraction")
-    ocr_text = ""
     if ocr_available:
         try:
             ocr_text = pytesseract.image_to_string(image).strip()
@@ -85,7 +90,6 @@ if image:
     try:
         device = "cuda" if torch.cuda.is_available() else "cpu"
 
-        # Load BLIP-1 model and processor (cache to avoid reload on every run)
         @st.cache_resource
         def load_blip():
             processor = AutoProcessor.from_pretrained("Salesforce/blip-image-captioning-base", use_fast=False)
@@ -112,7 +116,7 @@ if image:
     combined_text = ""
     if ocr_text:
         combined_text += ocr_text + " "
-    if 'caption' in locals():
+    if caption:
         combined_text += caption
 
     if combined_text:
