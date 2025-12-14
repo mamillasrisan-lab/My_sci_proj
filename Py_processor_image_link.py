@@ -14,8 +14,8 @@ st.title("📷 BLIP-1 Image Captioning")
 # -----------------------------
 # TAB SETUP
 # -----------------------------
-tabs = st.tabs(["Generate Caption", "Processed Images"])
-generate_tab, processed_tab = tabs
+tabs = st.tabs(["Generate Caption", "Processed Images", "Helper"])
+generate_tab, processed_tab, helper_tab = tabs
 
 # -----------------------------
 # SESSION STATE STORAGE
@@ -61,23 +61,24 @@ with generate_tab:
         except Exception as e:
             st.warning(f"Could not load image from URL: {e}")
 
+    # Generate caption button
     if image:
         st.image(image, caption="Selected Image", width="stretch")
+        if st.button("Generate Caption"):
+            try:
+                inputs = processor(image, return_tensors="pt").to(device)
+                with torch.no_grad():
+                    out = model.generate(**inputs)
+                    caption = processor.decode(out[0], skip_special_tokens=True)
 
-        try:
-            inputs = processor(image, return_tensors="pt").to(device)
-            with torch.no_grad():
-                out = model.generate(**inputs)
-                caption = processor.decode(out[0], skip_special_tokens=True)
+                st.markdown(f"**Caption:** {caption}")
 
-            st.markdown(f"**Caption:** {caption}")
+                # Save to session_state
+                st.session_state.processed_images.append((image.copy(), caption))
 
-            # Save to session_state
-            st.session_state.processed_images.append((image.copy(), caption))
-
-        except Exception as e:
-            st.warning("BLIP-1 captioning unavailable.")
-            st.code(str(e))
+            except Exception as e:
+                st.warning("BLIP-1 captioning unavailable.")
+                st.code(str(e))
     else:
         st.info("Please upload an image, take a photo, or enter an image URL.")
 
@@ -92,3 +93,22 @@ with processed_tab:
             st.image(img, caption=f"Caption: {cap}", use_column_width=True)
     else:
         st.info("No images have been processed yet.")
+
+# -----------------------------
+# HELPER TAB
+# -----------------------------
+with helper_tab:
+    st.write("💡 App Helper")
+    if st.button("Explain App"):
+        st.info("""
+        **How to use this app:**
+        1. Go to the 'Generate Caption' tab.
+        2. You can either:
+           - Upload an image,
+           - Take a photo with your camera,
+           - Or provide a direct image URL.
+        3. Click 'Generate Caption' to create a description of your image using BLIP-1.
+        4. Go to the 'Processed Images' tab to view all images you've captioned along with their captions.
+        
+        The app automatically handles device selection (GPU if available, CPU otherwise).
+        """)
