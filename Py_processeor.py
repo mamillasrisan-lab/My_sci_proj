@@ -5,9 +5,9 @@ import platform
 import torch
 
 # -----------------------------
-# BLIP-2 IMPORTS
+# BLIP-1 IMPORTS
 # -----------------------------
-from transformers import Blip2Processor, Blip2ForConditionalGeneration
+from transformers import BlipForConditionalGeneration, AutoProcessor
 
 # -----------------------------
 # ADAPTIVE OCR SETUP
@@ -41,8 +41,8 @@ except Exception:
 # STREAMLIT PAGE CONFIG
 # -----------------------------
 st.set_page_config(page_title="Smart Image Processor", page_icon="📷", layout="centered")
-st.title("📷 Smart Image Processor (BLIP-2)")
-st.write("Upload or take a photo → OCR + BLIP-2 caption → Button-activated TTS")
+st.title("📷 Smart Image Processor (BLIP-1)")
+st.write("Upload or take a photo → OCR + BLIP caption → Button-activated TTS")
 
 # -----------------------------
 # IMAGE INPUT
@@ -80,16 +80,21 @@ if image:
         st.warning("OCR engine not available on this system.")
     st.caption(f"OCR Engine: {ocr_engine}")
 
-    # CAPTION (BLIP-2)
-    st.subheader("3️⃣ Image Caption (BLIP-2)")
+    # CAPTION (BLIP-1)
+    st.subheader("3️⃣ Image Caption (BLIP-1)")
     try:
         device = "cuda" if torch.cuda.is_available() else "cpu"
 
-        # Load BLIP-2 processor and model once
-        processor = Blip2Processor.from_pretrained("Salesforce/blip2-opt-2.7b")
-        model = Blip2ForConditionalGeneration.from_pretrained("Salesforce/blip2-opt-2.7b").to(device)
+        # Load BLIP-1 model and processor (cache to avoid reload on every run)
+        @st.cache_resource
+        def load_blip():
+            processor = AutoProcessor.from_pretrained("Salesforce/blip-image-captioning-base", use_fast=False)
+            model = BlipForConditionalGeneration.from_pretrained("Salesforce/blip-image-captioning-base").to(device)
+            return processor, model
 
-        inputs = processor(images=image, return_tensors="pt").to(device)
+        processor, model = load_blip()
+
+        inputs = processor(image, return_tensors="pt").to(device)
         with torch.no_grad():
             out = model.generate(**inputs)
             caption = processor.decode(out[0], skip_special_tokens=True)
@@ -97,7 +102,7 @@ if image:
         st.markdown(f"**Caption:** {caption}")
 
     except Exception as e:
-        st.warning("BLIP-2 captioning unavailable.")
+        st.warning("BLIP-1 captioning unavailable.")
         st.code(str(e))
 
     # -----------------------------
