@@ -1,9 +1,9 @@
 import os
-import shutil
 import sys
+import tempfile
 import time
+import shutil
 import re
-from pathlib import Path
 
 from PIL import Image
 import pytesseract
@@ -11,146 +11,106 @@ from gtts import gTTS
 from playsound3 import playsound
 import torch
 from transformers import BlipForConditionalGeneration, AutoProcessor
+
 import pandas as pd
-import gspread
-from google.oauth2.service_account import Credentials
-from plyer import notification
+import streamlit as st
 
-# ---------------------------------------------------------
-# USER CONFIGURATION
-# ---------------------------------------------------------
-# Folder to watch for new images
-watch_folder = r"C:\Users\Srithan\Python_Projects\My_Sci_Fair_Project\Image_Input"
-# Folder to move processed images
-processed_folder = r"C:\Users\Srithan\Python_Projects\My_Sci_Fair_Project\Processed"
-# CSV output
-csv_path = r"C:\Users\Srithan\Downloads\parsed_images.csv"
-# Google Sheets config
-SERVICE_ACCOUNT_FILE = r"C:\Users\Srithan\service_account.json"
-sheet_url = "https://docs.google.com/spreadsheets/d/1RL5Du_GcQQZkBVcKlkHqnsy-KJB_jsoCjjNdKUBfzMg/edit#gid=0"
-sheet_tab_name = "Sheet1"
-
-# ---------------------------------------------------------
-# HELPER FUNCTIONS
-# ---------------------------------------------------------
-def clean_text(text):
-    return text.replace("\n", " ").replace("\r", " ").strip()
-
-def notify(title, message):
-    notification.notify(title=title, message=message, timeout=5)
-
-# ---------------------------------------------------------
-# SETUP MODEL
-# ---------------------------------------------------------
+# ------------------------------
+# Automatic environment detection
+# ------------------------------
 device = "cuda" if torch.cuda.is_available() else "cpu"
-model = BlipForConditionalGeneration.from_pretrained(
-    "Salesforce/blip-image-captioning-base"
-).to(device)
-processor = AutoProcessor.from_pretrained(
-    "Salesforce/blip-image-captioning-base", use_fast=False
-)
+st.sidebar.write(f"Detected device: {device}")
 
-# ---------------------------------------------------------
-# INIT DATA
-# ---------------------------------------------------------
-image_names = []
-captions = []
-extracted_texts = []
-capt_times = []
-proc_times = []
+# Use a temporary directory for audio files
+tmp_dir = tempfile.gettempdir()
 
+# Base app folder
+base_dir = os.path.dirname(sys.argv[0])  # relative to where app runs
+
+# Input/output folders
+watch_folder = os.path.join(base_dir, "Image_Input")
+processed_folder = os.path.join(base_dir, "Processed")
 os.makedirs(watch_folder, exist_ok=True)
 os.makedirs(processed_folder, exist_ok=True)
 
-# ---------------------------------------------------------
-# GOOGLE SHEETS SETUP
-# ---------------------------------------------------------
-creds = Credentials.from_service_account_file(SERVICE_ACCOUNT_FILE,
-                                              scopes=["https://www.googleapis.com/auth/spreadsheets",
-                                                      "https://www.googleapis.com/auth/drive"])
-gc = gspread.authorize(creds)
-sh = gc.open_by_url(sheet_url)
-worksheet = sh.worksheet(sheet_tab_name)
+# CSV output
+csv_path = os.path.join(base_dir, "parsed_images.csv")
 
-# ---------------------------------------------------------
-# MAIN LOOP
-# ---------------------------------------------------------
-print("Watching folder for new images...")
+# ------------------------------
+# Load BLIP model
+# ------------------------------
+@st.cache_resource
+def load_model():
+    model = BlipForConditionalGeneration.from_pretrained(
+        "Salesforce/blip-image-captioning-base"
+    ).to(device)
+    processor = AutoProcessor.from_pretrained(
+        "Salesforce/blip-image-captioning-base", use_fast=False
+    )
+    return model, processor
 
-processed_files = set()
+model, processor = load_model()
 
-while True:
-    try:
-        files = [f for f in os.listdir(watch_folder) if f.lower().endswith((".png", ".jpg", ".jpeg"))]
-        for file in files:
-            if file in processed_files:
-                continue  # Skip already processed files
+# ------------------------------
+# Helper functions
+# ------------------------------
+def clean_text(text):
+    return text.replace("\n", " ").replace("\r", " ").strip()
 
-            file_path = os.path.join(watch_folder, file)
-            start_time = time.perf_counter()
+def process_image(file_path):
+    start_time = time.perf_counter()
+    img = Image.open(file_path).convert("RGB")
 
-            try:
-                # Open image
-                img = Image.open(file_path).convert("RGB")
+    # Caption
+    inputs = processor(img, return_tensors="pt").to(device)
+    with torch.no_grad():
+        out = model.generate(**inputs)
+        caption = processor.decode(out[0], skip_special_tokens=True)
+        caption = clean_text(caption)
 
-                # Generate caption
-                inputs = processor(img, return_tensors="pt").to(device)
-                with torch.no_grad():
-                    out = model.generate(**inputs)
-                    caption = processor.decode(out[0], skip_special_tokens=True)
-                    caption = clean_text(caption)
+    # Text extraction
+    extracted_text = clean_text(pytesseract.image_to_string(img))
 
-                # Extract text
-                extracted_text = clean_text(pytesseract.image_to_string(img))
+    # TTS
+    audio_file = os.path.join(tmp_dir, f"temp_{os.path.basename(file_path)}.mp3")
+    speech = gTTS(text=f"Caption: {caption}. Extracted text: {extracted_text}", lang='en')
+    speech.save(audio_file)
+    playsound(audio_file)
+    os.remove(audio_file)
 
-                # TTS
-                full_text = f"Caption: {caption}. Extracted text: {extracted_text}"
-                audio_file = f"temp_{file}.mp3"
-                speech = gTTS(text=full_text, lang='en')
-                speech.save(audio_file)
-                playsound(audio_file)
-                os.remove(audio_file)
+    # Move file
+    shutil.move(file_path, os.path.join(processed_folder, os.path.basename(file_path)))
 
-                end_time = time.perf_counter()
-                total_time = round(end_time - start_time, 2)
+    total_time = round(time.perf_counter() - start_time, 2)
+    return caption, extracted_text, total_time
 
-                # Move processed file
-                shutil.move(file_path, os.path.join(processed_folder, file))
+# ------------------------------
+# Streamlit UI
+# ------------------------------
+st.title("🖼️ Automatic Image Caption & Text Extractor")
 
-                # Append to data
-                image_names.append(file)
-                captions.append(caption)
-                extracted_texts.append(extracted_text)
-                capt_times.append(total_time)
-                proc_times.append(total_time)
+uploaded_files = st.file_uploader("Upload images", type=["jpg", "png", "jpeg"], accept_multiple_files=True)
 
-                # Notify
-                notify("Image Processed", f"{file} processed!\nCaption: {caption}")
+if uploaded_files:
+    results = []
 
-                # Update CSV
-                df = pd.DataFrame({
-                    "Image Name": image_names,
-                    "Caption": captions,
-                    "Extracted Text": extracted_texts,
-                    "Processing Time": proc_times
-                })
-                df.to_csv(csv_path, index=False)
+    for uploaded_file in uploaded_files:
+        file_path = os.path.join(watch_folder, uploaded_file.name)
+        with open(file_path, "wb") as f:
+            f.write(uploaded_file.getbuffer())
 
-                # Update Google Sheets
-                worksheet.clear()
-                worksheet.update([df.columns.tolist()] + df.astype(str).values.tolist())
+        caption, text, proc_time = process_image(file_path)
+        results.append({
+            "Image Name": uploaded_file.name,
+            "Caption": caption,
+            "Extracted Text": text,
+            "Processing Time": proc_time
+        })
 
-                processed_files.add(file)
+    df = pd.DataFrame(results)
+    df.to_csv(csv_path, index=False)
 
-            except Exception as e:
-                notify("Processing Error", f"Failed to process {file}\n{e}")
-                continue
+    st.subheader("Processed Results")
+    st.dataframe(df)
 
-        time.sleep(2)  # Check every 2 seconds
-
-    except KeyboardInterrupt:
-        print("Stopping image watcher...")
-        break
-    except Exception as e:
-        notify("Watcher Error", str(e))
-        time.sleep(5)
+    st.success(f"✅ All images processed! CSV saved at: {csv_path}")
