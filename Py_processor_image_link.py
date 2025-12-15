@@ -137,6 +137,6 @@ with helper_tab:
         4. The URL box will clear automatically after processing.
         5. Go to the 'Processed Images' tab to view all images you've captioned along with their captions.
 
-        The app automatically detects if a GPU is available and uses it; otherwise, it runs on CPU.
+        The app automatically detects if a GPU is available and uses it; otherwise, it runs on the CPU.
         For image links, only secure URLs (https) will be processed.
         """)
