@@ -4,6 +4,7 @@ import torch
 from transformers import BlipForConditionalGeneration, AutoProcessor
 import requests
 from io import BytesIO
+import base64
 
 # -----------------------------
 # STREAMLIT PAGE CONFIG
@@ -41,6 +42,32 @@ def load_blip():
 processor, model = load_blip()
 
 # -----------------------------
+# HELPER FUNCTION FOR FADE-IN
+# -----------------------------
+def fade_in_image_caption(img: Image.Image, caption: str):
+    # Convert image to base64 for inline HTML
+    buffered = BytesIO()
+    img.save(buffered, format="PNG")
+    img_str = base64.b64encode(buffered.getvalue()).decode()
+    
+    html_code = f"""
+    <style>
+    .fade-in {{
+        animation: fadeIn 1s ease-in-out;
+    }}
+    @keyframes fadeIn {{
+        from {{ opacity: 0; }}
+        to {{ opacity: 1; }}
+    }}
+    </style>
+    <div class="fade-in">
+        <img src="data:image/png;base64,{img_str}" style="max-width:100%;"/>
+        <p><b>Caption:</b> {caption}</p>
+    </div>
+    """
+    st.markdown(html_code, unsafe_allow_html=True)
+
+# -----------------------------
 # GENERATE CAPTION TAB
 # -----------------------------
 with generate_tab:
@@ -73,21 +100,23 @@ with generate_tab:
 
     # Generate caption button
     if image:
-        st.image(image, caption="Selected Image", width="stretch")
+        st.image(image, caption="Selected Image", use_column_width=True)
         if st.button("Generate Caption"):
             try:
-                inputs = processor(image, return_tensors="pt").to(device)
-                with torch.no_grad():
-                    out = model.generate(**inputs)
-                    caption = processor.decode(out[0], skip_special_tokens=True)
+                with st.spinner("Generating caption... Please wait."):
+                    inputs = processor(image, return_tensors="pt").to(device)
+                    with torch.no_grad():
+                        out = model.generate(**inputs)
+                        caption = processor.decode(out[0], skip_special_tokens=True)
 
-                st.markdown(f"**Caption:** {caption}")
+                    # Display with fade-in
+                    fade_in_image_caption(image.copy(), caption)
 
-                # Save to session_state
-                st.session_state.processed_images.append((image.copy(), caption))
+                    # Save to session_state
+                    st.session_state.processed_images.append((image.copy(), caption))
 
-                # Clear URL text input
-                st.session_state.text_input = ""
+                    # Clear URL text input
+                    st.session_state.text_input = ""
 
             except Exception as e:
                 st.warning("BLIP-1 captioning unavailable.")
@@ -103,7 +132,7 @@ with processed_tab:
 
     if st.session_state.processed_images:
         for idx, (img, cap) in enumerate(st.session_state.processed_images):
-            st.image(img, caption=f"Caption: {cap}", use_column_width=True)
+            fade_in_image_caption(img, cap)
     else:
         st.info("No images have been processed yet.")
 
