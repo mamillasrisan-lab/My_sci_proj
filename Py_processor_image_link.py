@@ -4,8 +4,7 @@ import torch
 from transformers import BlipForConditionalGeneration, AutoProcessor
 import requests
 from io import BytesIO
-from gtts import gTTS
-import os
+import time
 
 # -----------------------------
 # STREAMLIT PAGE CONFIG
@@ -41,18 +40,11 @@ def load_blip():
 processor, model = load_blip()
 
 # -----------------------------
-# HELPER FUNCTION TO GENERATE CAPTION
+# HELPER FUNCTION FOR FADE-IN IMAGE/CAPTION
 # -----------------------------
-def generate_caption(img):
-    try:
-        with st.spinner("Generating caption..."):
-            inputs = processor(img, return_tensors="pt").to(device)
-            with torch.no_grad():
-                out = model.generate(**inputs)
-            caption = processor.decode(out[0], skip_special_tokens=True)
-        return caption
-    except Exception:
-        return None
+def fade_in_image_caption(image, caption, delay=0.02):
+    """Smoothly fade in the image and caption."""
+    st.image(image, caption=caption, width="stretch")
 
 # -----------------------------
 # GENERATE CAPTION TAB
@@ -76,35 +68,43 @@ with generate_tab:
             response = requests.get(image_url)
             response.raise_for_status()
             image = Image.open(BytesIO(response.content))
-        except Exception:
-            st.warning("Could not load image from URL.")
+        except Exception as e:
+            st.warning(f"Could not load image from URL: {e}")
 
+    # Ask user if they want to use camera each reload
+    if camera_image is None:
+        if st.button("Use Camera"):
+            st.experimental_rerun()
+
+    # Generate caption button
     if image:
-        st.image(image, caption="Selected Image", use_column_width=True)
+        st.image(image, caption="Selected Image", width="stretch")
         if st.button("Generate Caption"):
-            caption = generate_caption(image)
-            if caption:
-                st.markdown(f"**Caption:** {caption}")
+            caption = None
+            if processor and model:
+                try:
+                    with st.spinner("Generating caption... Please wait."):
+                        inputs = processor(image, return_tensors="pt").to(device)
+                        with torch.no_grad():
+                            out = model.generate(**inputs)
+                            caption = processor.decode(out[0], skip_special_tokens=True)
 
-                # Save to session_state
-                st.session_state.processed_images.append((image.copy(), caption))
+                        # Save to session_state
+                        st.session_state.processed_images.append((image.copy(), caption))
 
-                # Clear URL text input
-                st.session_state.text_input = ""
+                        # Clear URL text input
+                        st.session_state.text_input = ""
 
-                # TTS playback button
-                if st.button("Play Caption Audio"):
+                except Exception:
+                    st.warning("Captioning failed. Try a different image or check your connection.")
+                    caption = None
+
+                # Display image & caption with smooth transition
+                if caption:
                     try:
-                        tts = gTTS(caption, lang="en")
-                        audio_file = "caption.mp3"
-                        tts.save(audio_file)
-                        audio_bytes = open(audio_file, "rb").read()
-                        st.audio(audio_bytes, format="audio/mp3")
-                        os.remove(audio_file)
+                        fade_in_image_caption(image.copy(), caption)
                     except Exception:
-                        st.warning("Audio playback unavailable.")
-            else:
-                st.warning("Captioning failed. Please try another image.")
+                        st.warning("Caption generated, but displaying the image failed.")
     else:
         st.info("Please upload an image, take a photo, or enter an image URL.")
 
@@ -135,8 +135,8 @@ with helper_tab:
            - Or provide a direct image URL.
         3. Click 'Generate Caption' to create a description of your image using BLIP-1.
         4. The URL box will clear automatically after processing.
-        5. You can click 'Play Caption Audio' to hear the caption.
-        6. Go to the 'Processed Images' tab to view all images you've captioned along with their captions.
+        5. Go to the 'Processed Images' tab to view all images you've captioned along with their captions.
 
         The app automatically detects if a GPU is available and uses it; otherwise, it runs on CPU.
+        For image links, only secure URLs (https) will be processed.
         """)
