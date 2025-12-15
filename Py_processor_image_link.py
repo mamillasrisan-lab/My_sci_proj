@@ -24,6 +24,8 @@ if "processed_images" not in st.session_state:
     st.session_state.processed_images = []  # List of (image, caption)
 if "text_input" not in st.session_state:
     st.session_state.text_input = ""  # URL input
+if "use_camera" not in st.session_state:
+    st.session_state.use_camera = False  # Ask if user wants to use camera
 
 # -----------------------------
 # LOAD BLIP-1 MODEL (CACHE)
@@ -44,8 +46,14 @@ processor, model = load_blip()
 with generate_tab:
     st.write("Upload an image, take a photo, or provide an image URL to generate a caption.")
 
+    # Ask user if they want to use the camera
+    st.session_state.use_camera = st.checkbox("Use Camera?", value=False)
+
     uploaded_file = st.file_uploader("Upload an image", type=["png", "jpg", "jpeg"])
-    camera_image = st.camera_input("Or take a photo")
+    camera_image = None
+    if st.session_state.use_camera:
+        camera_image = st.camera_input("Or take a photo")
+
     image_url = st.text_input("Or enter an image URL", key="text_input")
 
     image = None
@@ -110,13 +118,12 @@ with helper_tab:
         1. Go to the 'Generate Caption' tab.
         2. You can either:
            - Upload an image,
-           - Take a photo with your camera,
+           - Take a photo with your camera (enable the checkbox first),
            - Or provide a direct image URL.
         3. Click 'Generate Caption' to create a description of your image using BLIP-1.
         4. The URL box will clear automatically after processing.
         5. Go to the 'Processed Images' tab to view all images you've captioned along with their captions.
 
         The app automatically detects if a GPU is available and uses it; otherwise, it runs on CPU.
-        Also, if you are using an image link, then be sure that the image is a secure one, or else it will not be processed
-        . You will always be able to determine if it's secure or not, as it won't show the image if it's not secure
+        If you are using an image link, make sure it is secure (https), otherwise the image will not load.
         """)
