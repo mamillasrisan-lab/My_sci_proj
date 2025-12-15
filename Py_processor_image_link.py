@@ -5,6 +5,12 @@ from transformers import BlipForConditionalGeneration, AutoProcessor
 import requests
 from io import BytesIO
 import base64
+import warnings
+
+# -----------------------------
+# SUPPRESS WARNINGS
+# -----------------------------
+warnings.filterwarnings("ignore")
 
 # -----------------------------
 # STREAMLIT PAGE CONFIG
@@ -35,9 +41,13 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 
 @st.cache_resource
 def load_blip():
-    processor = AutoProcessor.from_pretrained("Salesforce/blip-image-captioning-base", use_fast=False)
-    model = BlipForConditionalGeneration.from_pretrained("Salesforce/blip-image-captioning-base").to(device)
-    return processor, model
+    try:
+        processor = AutoProcessor.from_pretrained("Salesforce/blip-image-captioning-base", use_fast=False)
+        model = BlipForConditionalGeneration.from_pretrained("Salesforce/blip-image-captioning-base").to(device)
+        return processor, model
+    except Exception:
+        st.warning("Could not load BLIP model. Please check your internet connection or model availability.")
+        return None, None
 
 processor, model = load_blip()
 
@@ -45,27 +55,30 @@ processor, model = load_blip()
 # HELPER FUNCTION FOR FADE-IN
 # -----------------------------
 def fade_in_image_caption(img: Image.Image, caption: str):
-    # Convert image to base64 for inline HTML
-    buffered = BytesIO()
-    img.save(buffered, format="PNG")
-    img_str = base64.b64encode(buffered.getvalue()).decode()
-    
-    html_code = f"""
-    <style>
-    .fade-in {{
-        animation: fadeIn 1s ease-in-out;
-    }}
-    @keyframes fadeIn {{
-        from {{ opacity: 0; }}
-        to {{ opacity: 1; }}
-    }}
-    </style>
-    <div class="fade-in">
-        <img src="data:image/png;base64,{img_str}" style="max-width:100%;"/>
-        <p><b>Caption:</b> {caption}</p>
-    </div>
-    """
-    st.markdown(html_code, unsafe_allow_html=True)
+    try:
+        # Convert image to base64 for inline HTML
+        buffered = BytesIO()
+        img.save(buffered, format="PNG")
+        img_str = base64.b64encode(buffered.getvalue()).decode()
+        
+        html_code = f"""
+        <style>
+        .fade-in {{
+            animation: fadeIn 1s ease-in-out;
+        }}
+        @keyframes fadeIn {{
+            from {{ opacity: 0; }}
+            to {{ opacity: 1; }}
+        }}
+        </style>
+        <div class="fade-in">
+            <img src="data:image/png;base64,{img_str}" style="max-width:100%;"/>
+            <p><b>Caption:</b> {caption}</p>
+        </div>
+        """
+        st.markdown(html_code, unsafe_allow_html=True)
+    except Exception:
+        st.warning("Could not display image.")
 
 # -----------------------------
 # GENERATE CAPTION TAB
@@ -86,41 +99,43 @@ with generate_tab:
     image = None
 
     # Load image from input
-    if uploaded_file:
-        image = Image.open(uploaded_file)
-    elif camera_image:
-        image = Image.open(camera_image)
-    elif image_url:
-        try:
+    try:
+        if uploaded_file:
+            image = Image.open(uploaded_file)
+        elif camera_image:
+            image = Image.open(camera_image)
+        elif image_url:
             response = requests.get(image_url)
             response.raise_for_status()
             image = Image.open(BytesIO(response.content))
-        except Exception as e:
-            st.warning(f"Could not load image from URL: {e}")
+    except Exception:
+        st.warning("Could not load the image. Please check the file or URL.")
 
     # Generate caption button
     if image:
         st.image(image, caption="Selected Image", use_column_width=True)
         if st.button("Generate Caption"):
-            try:
-                with st.spinner("Generating caption... Please wait."):
-                    inputs = processor(image, return_tensors="pt").to(device)
-                    with torch.no_grad():
-                        out = model.generate(**inputs)
-                        caption = processor.decode(out[0], skip_special_tokens=True)
+            if processor and model:
+                try:
+                    with st.spinner("Generating caption... Please wait."):
+                        inputs = processor(image, return_tensors="pt").to(device)
+                        with torch.no_grad():
+                            out = model.generate(**inputs)
+                            caption = processor.decode(out[0], skip_special_tokens=True)
 
-                    # Display with fade-in
-                    fade_in_image_caption(image.copy(), caption)
+                        # Display with fade-in
+                        fade_in_image_caption(image.copy(), caption)
 
-                    # Save to session_state
-                    st.session_state.processed_images.append((image.copy(), caption))
+                        # Save to session_state
+                        st.session_state.processed_images.append((image.copy(), caption))
 
-                    # Clear URL text input
-                    st.session_state.text_input = ""
+                        # Clear URL text input
+                        st.session_state.text_input = ""
 
-            except Exception as e:
-                st.warning("BLIP-1 captioning unavailable.")
-                st.code(str(e))
+                except Exception:
+                    st.warning("Captioning failed. Try a different image or check your connection.")
+            else:
+                st.warning("Model is not loaded. Cannot generate captions.")
     else:
         st.info("Please upload an image, take a photo, or enter an image URL.")
 
