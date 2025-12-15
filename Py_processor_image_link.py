@@ -22,6 +22,8 @@ generate_tab, processed_tab, helper_tab = tabs
 # -----------------------------
 if "processed_images" not in st.session_state:
     st.session_state.processed_images = []  # List of (image, caption)
+if "text_input" not in st.session_state:
+    st.session_state.text_input = ""  # URL input
 
 # -----------------------------
 # LOAD BLIP-1 MODEL (CACHE)
@@ -44,7 +46,7 @@ with generate_tab:
 
     uploaded_file = st.file_uploader("Upload an image", type=["png", "jpg", "jpeg"])
     camera_image = st.camera_input("Or take a photo")
-    image_url = st.text_input("Or enter an image URL")
+    image_url = st.text_input("Or enter an image URL", key="text_input")
 
     image = None
 
@@ -75,6 +77,9 @@ with generate_tab:
 
                 # Save to session_state
                 st.session_state.processed_images.append((image.copy(), caption))
+
+                # Clear URL text input
+                st.session_state.text_input = ""
 
             except Exception as e:
                 st.warning("BLIP-1 captioning unavailable.")
@@ -108,7 +113,10 @@ with helper_tab:
            - Take a photo with your camera,
            - Or provide a direct image URL.
         3. Click 'Generate Caption' to create a description of your image using BLIP-1.
-        4. Go to the 'Processed Images' tab to view all images you've captioned along with their captions.
-        
-        The app automatically handles device selection (GPU if available, CPU otherwise).
+        4. The URL box will clear automatically after processing.
+        5. Go to the 'Processed Images' tab to view all images you've captioned along with their captions.
+
+        The app automatically detects if a GPU is available and uses it; otherwise, it runs on CPU.
+        Also, if you are using an image link, then be sure that the image is a secure one, or else it will not be processed
+        . You will always be able to determine if it's secure or not, as it won't show the image if it's not secure
         """)
