@@ -42,14 +42,13 @@ processor, model = load_blip()
 # -----------------------------
 # HELPER FUNCTION FOR FADE-IN IMAGE/CAPTION
 # -----------------------------
-def fade_in_image_caption(image, caption, delay=0.02):
-    """Smoothly fade in the image and caption."""
-    st.image(image, caption=caption, width="stretch")
+def fade_in_image_caption(image, caption):
+    st.image(image, caption=caption, use_column_width=True)
 
 # -----------------------------
-# PRESET IMAGES SETUP
+# PRESET IMAGES
 # -----------------------------
-preset_folder = r"C:\Users\Srithan\preset images"
+preset_folder = "preset_images"
 preset_images = {
     "Wildfires with Cars": os.path.join(preset_folder, "wilfires_with_cars_118.jpg"),
     "Historical Exhibit 132": os.path.join(preset_folder, "Historical_Exhibit_room_132.jpg"),
@@ -63,29 +62,32 @@ preset_images = {
 with generate_tab:
     st.write("Select a preset image, upload an image, take a photo, or provide an image URL to generate a caption.")
 
-    # Display preset images as buttons
-    cols = st.columns(len(preset_images))
-    selected_preset = None
-    for i, (friendly_name, path) in enumerate(preset_images.items()):
-        if os.path.exists(path):
-            img = Image.open(path)
-            if cols[i].button(friendly_name):
-                selected_preset = img.copy()
-        else:
-            cols[i].write(f"Preset '{friendly_name}' not found")
-
-    # Upload, camera, or URL
     uploaded_file = st.file_uploader("Upload an image", type=["png", "jpg", "jpeg"])
-    camera_image = st.camera_input("Or take a photo")
     image_url = st.text_input("Or enter an image URL", key="text_input")
 
-    # Decide which image to use
-    image = selected_preset
-    if uploaded_file:
-        image = Image.open(uploaded_file)
-    elif camera_image:
-        image = Image.open(camera_image)
-    elif image_url:
+    # Preset selection
+    cols = st.columns(len(preset_images))
+    selected_preset = None
+    for i, (name, path) in enumerate(preset_images.items()):
+        if os.path.exists(path):
+            img = Image.open(path)
+            if cols[i].button(name):
+                selected_preset = img.copy()
+        else:
+            cols[i].write(f"Preset '{name}' not found")
+
+    # Camera checkbox
+    camera_image = None
+    use_camera = st.checkbox("Use Camera")  # Checkbox to enable camera input
+    if use_camera and selected_preset is None and uploaded_file is None and not image_url:
+        camera_image = st.camera_input("Take a photo")
+
+    # Determine which image to use
+    image = selected_preset or (Image.open(uploaded_file) if uploaded_file else None) or \
+            (Image.open(camera_image) if camera_image else None) or None
+
+    # Load from URL if provided
+    if image is None and image_url:
         try:
             response = requests.get(image_url)
             response.raise_for_status()
@@ -93,14 +95,9 @@ with generate_tab:
         except Exception as e:
             st.warning(f"Could not load image from URL: {e}")
 
-    # Camera checkbox prompt (asks every reload)
-    if camera_image is None:
-        if st.checkbox("Use Camera?"):
-            st.experimental_rerun()
-
     # Generate caption button
     if image:
-        st.image(image, caption="Selected Image", width="stretch")
+        st.image(image, caption="Selected Image", use_column_width=True)
         if st.button("Generate Caption"):
             caption = None
             if processor and model:
@@ -121,14 +118,11 @@ with generate_tab:
                     st.warning("Captioning failed. Try a different image or check your connection.")
                     caption = None
 
-                # Display image & caption with smooth transition
+                # Display image & caption
                 if caption:
-                    try:
-                        fade_in_image_caption(image.copy(), caption)
-                    except Exception:
-                        st.warning("Caption generated, but displaying the image failed.")
+                    fade_in_image_caption(image.copy(), caption)
     else:
-        st.info("Please select or upload an image.")
+        st.info("Please select a preset, upload an image, use the camera, or enter a valid image URL.")
 
 # -----------------------------
 # PROCESSED IMAGES TAB
@@ -154,13 +148,11 @@ with helper_tab:
         2. You can either:
            - Select a preset image,
            - Upload an image,
-           - Take a photo with your camera,
+           - Take a photo with your camera (enable via checkbox),
            - Or provide a direct image URL.
         3. Click 'Generate Caption' to create a description of your image using BLIP-1.
         4. The URL box will clear automatically after processing.
         5. Go to the 'Processed Images' tab to view all images you've captioned along with their captions.
 
         The app automatically detects if a GPU is available and uses it; otherwise, it runs on CPU.
-        For image links, only secure URLs (https) will be processed.
         """)
-
