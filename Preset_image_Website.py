@@ -49,12 +49,11 @@ def fade_in_image_caption(image, caption):
 # -----------------------------
 # PRESET IMAGES SETUP
 # -----------------------------
-preset_folder = "presets"  # Folder containing preset images
 preset_images = {
-    "Sunset Beach": os.path.join(preset_folder, "sunset_beach.jpg"),
-    "City Skyline": os.path.join(preset_folder, "city_skyline.jpg"),
-    "Forest Trail": os.path.join(preset_folder, "forest_trail.jpg"),
-    "Mountain View": os.path.join(preset_folder, "mountain_view.jpg")
+    "Wildfires with Cars": r"C:\Users\Srithan\preset images\wilfires_with_cars_118.jpg",
+    "Historical Exhibit 132": r"C:\Users\Srithan\preset images\Historical_Exhibit_room_132.jpg",
+    "Historical Exhibit 177": r"C:\Users\Srithan\preset images\Historical_Exhibit_room_177.jpg",
+    "Fruit Flies in Farms": r"C:\Users\Srithan\preset images\fruit_flies_in_farms_161.jpg"
 }
 
 # -----------------------------
@@ -75,7 +74,8 @@ with generate_tab:
             cols[i].write(f"Preset {name} not found.")
 
     uploaded_file = st.file_uploader("Upload an image", type=["png", "jpg", "jpeg"])
-    camera_image = st.camera_input("Or take a photo")
+    use_camera = st.checkbox("Use Camera")  # <-- Camera checkbox
+    camera_image = st.camera_input("Take a photo") if use_camera else None
     image_url = st.text_input("Or enter an image URL", key="text_input")
 
     image = selected_preset
@@ -92,11 +92,6 @@ with generate_tab:
             image = Image.open(BytesIO(response.content))
         except Exception as e:
             st.warning(f"Could not load image from URL: {e}")
-
-    # Ask user if they want to use camera each reload
-    if camera_image is None:
-        if st.button("Use Camera"):
-            st.experimental_rerun()
 
     # Generate caption button
     if image:
@@ -121,7 +116,7 @@ with generate_tab:
                     st.warning("Captioning failed. Try a different image or check your connection.")
                     caption = None
 
-                # Display image & caption with smooth transition
+                # Display image & caption
                 if caption:
                     try:
                         fade_in_image_caption(image.copy(), caption)
@@ -153,7 +148,7 @@ with helper_tab:
         2. You can either:
            - Select a preset image,
            - Upload an image,
-           - Take a photo with your camera,
+           - Take a photo (check 'Use Camera'),
            - Or provide a direct image URL.
         3. Click 'Generate Caption' to create a description of your image using BLIP-1.
         4. The URL box will clear automatically after processing.
