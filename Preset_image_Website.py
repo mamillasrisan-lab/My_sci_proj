@@ -19,20 +19,19 @@ tabs = st.tabs(["Generate Caption", "Processed Images", "Helper"])
 generate_tab, processed_tab, helper_tab = tabs
 
 # -----------------------------
-# SESSION STATE STORAGE
+# SESSION STATE
 # -----------------------------
 if "processed_images" not in st.session_state:
-    st.session_state.processed_images = []  # List of (image, caption)
+    st.session_state.processed_images = []
 if "text_input" not in st.session_state:
-    st.session_state.text_input = ""  # URL input
+    st.session_state.text_input = ""
 if "use_camera" not in st.session_state:
     st.session_state.use_camera = False
 
 # -----------------------------
-# PRESET IMAGES (auto-detect .jpg)
+# PRESET IMAGES
 # -----------------------------
 preset_folder = r"C:\Users\Srithan\preset_images"
-preset_images = {}
 friendly_names = {
     "wilfires_with_cars_118.jpg": "Wildfires with Cars",
     "Historical_Exhibit_room_132.jpg": "Historical Exhibit 132",
@@ -40,13 +39,17 @@ friendly_names = {
     "fruit_flies_in_farms_161.jpg": "Fruit Flies in Farms"
 }
 
+preset_images = {}
 for fname, friendly in friendly_names.items():
     full_path = os.path.join(preset_folder, fname)
     if os.path.exists(full_path):
         preset_images[friendly] = full_path
 
+if not preset_images:
+    st.warning("No preset images found! Check your folder path and file names.")
+
 # -----------------------------
-# LOAD BLIP-1 MODEL (CACHE)
+# LOAD BLIP MODEL
 # -----------------------------
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -59,51 +62,47 @@ def load_blip():
 processor, model = load_blip()
 
 # -----------------------------
-# HELPER FUNCTION FOR FADE-IN IMAGE/CAPTION
+# HELPER FUNCTION
 # -----------------------------
 def fade_in_image_caption(image, caption):
-    """Smoothly display image and caption."""
     st.image(image, caption=caption, width="stretch")
 
 # -----------------------------
 # GENERATE CAPTION TAB
 # -----------------------------
 with generate_tab:
-    st.write("Select a preset image, upload an image, take a photo, or provide an image URL to generate a caption.")
+    st.write("Select a preset, upload an image, use the camera, or enter an image URL to generate a caption.")
 
-    # Preset selector
-    preset_choice = st.selectbox("Preset Images", [""] + list(preset_images.keys()))
-    
-    # File uploader and camera
-    uploaded_file = st.file_uploader("Upload an image", type=["png", "jpg", "jpeg"])
-    
     # Camera checkbox
     use_camera = st.checkbox("Use Camera", value=st.session_state.use_camera)
     st.session_state.use_camera = use_camera
+
+    # Preset dropdown
+    preset_choice = st.selectbox("Preset Images", [""] + list(preset_images.keys()))
     
+    # File uploader
+    uploaded_file = st.file_uploader("Upload an image", type=["png", "jpg", "jpeg"])
+    
+    # Camera input
     camera_image = None
     if use_camera:
         camera_image = st.camera_input("Take a photo")
-    
+
     # URL input
     image_url = st.text_input("Or enter an image URL", key="text_input")
 
     image = None
 
-    # Load image from preset
+    # Priority: Preset > Upload > Camera > URL
     if preset_choice and preset_choice in preset_images:
         try:
             image = Image.open(preset_images[preset_choice])
         except Exception as e:
             st.warning(f"Could not load preset image: {e}")
-
-    # Load image from upload
     elif uploaded_file:
         image = Image.open(uploaded_file)
-    # Load image from camera
     elif camera_image:
         image = Image.open(camera_image)
-    # Load image from URL
     elif image_url:
         try:
             response = requests.get(image_url)
@@ -112,31 +111,23 @@ with generate_tab:
         except Exception as e:
             st.warning(f"Could not load image from URL: {e}")
 
+    # Display selected image and generate caption
     if image:
         st.image(image, caption="Selected Image", width="stretch")
         if st.button("Generate Caption"):
-            caption = None
-            if processor and model:
-                try:
-                    with st.spinner("Generating caption... Please wait."):
-                        inputs = processor(image, return_tensors="pt").to(device)
-                        with torch.no_grad():
-                            out = model.generate(**inputs)
-                            caption = processor.decode(out[0], skip_special_tokens=True)
+            try:
+                with st.spinner("Generating caption..."):
+                    inputs = processor(image, return_tensors="pt").to(device)
+                    with torch.no_grad():
+                        out = model.generate(**inputs)
+                        caption = processor.decode(out[0], skip_special_tokens=True)
 
-                        # Save to session_state
-                        st.session_state.processed_images.append((image.copy(), caption))
-
-                        # Clear URL text input
-                        st.session_state.text_input = ""
-
-                except Exception:
-                    st.warning("Captioning failed. Try a different image or check your connection.")
-                    caption = None
-
-                # Display image & caption
-                if caption:
+                    st.session_state.processed_images.append((image.copy(), caption))
+                    st.session_state.text_input = ""
                     fade_in_image_caption(image.copy(), caption)
+
+            except Exception as e:
+                st.warning(f"Captioning failed: {e}")
     else:
         st.info("Please select a preset, upload an image, use the camera, or enter a valid image URL.")
 
@@ -144,8 +135,7 @@ with generate_tab:
 # PROCESSED IMAGES TAB
 # -----------------------------
 with processed_tab:
-    st.write("Previously processed images and their captions:")
-
+    st.write("Previously processed images and captions:")
     if st.session_state.processed_images:
         for idx, (img, cap) in enumerate(st.session_state.processed_images):
             st.image(img, caption=f"Caption: {cap}", use_column_width=True)
@@ -161,14 +151,8 @@ with helper_tab:
         st.info("""
         **How to use this app:**
         1. Go to the 'Generate Caption' tab.
-        2. You can either:
-           - Select a preset image,
-           - Upload an image,
-           - Take a photo with your camera,
-           - Or provide a direct image URL.
-        3. Click 'Generate Caption' to create a description of your image using BLIP-1.
+        2. Select a preset, upload an image, use the camera, or enter a URL.
+        3. Click 'Generate Caption' to generate a description using BLIP-1.
         4. The URL box will clear automatically after processing.
-        5. Go to the 'Processed Images' tab to view all images you've captioned along with their captions.
-
-        The app automatically detects if a GPU is available and uses it; otherwise, it runs on CPU.
+        5. View processed images in the 'Processed Images' tab.
         """)
