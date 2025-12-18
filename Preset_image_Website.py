@@ -29,6 +29,23 @@ if "use_camera" not in st.session_state:
     st.session_state.use_camera = False
 
 # -----------------------------
+# PRESET IMAGES (auto-detect .jpg)
+# -----------------------------
+preset_folder = r"C:\Users\Srithan\preset_images"
+preset_images = {}
+friendly_names = {
+    "wilfires_with_cars_118.jpg": "Wildfires with Cars",
+    "Historical_Exhibit_room_132.jpg": "Historical Exhibit 132",
+    "Historical_Exhibit_room_177.jpg": "Historical Exhibit 177",
+    "fruit_flies_in_farms_161.jpg": "Fruit Flies in Farms"
+}
+
+for fname, friendly in friendly_names.items():
+    full_path = os.path.join(preset_folder, fname)
+    if os.path.exists(full_path):
+        preset_images[friendly] = full_path
+
+# -----------------------------
 # LOAD BLIP-1 MODEL (CACHE)
 # -----------------------------
 device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -42,63 +59,51 @@ def load_blip():
 processor, model = load_blip()
 
 # -----------------------------
-# PRESET IMAGES
-# -----------------------------
-preset_folder = r"C:\Users\Srithan\preset_images"
-preset_images = {
-    "Wildfires with Cars": os.path.join(preset_folder, "wilfires_with_cars_118.jpg"),
-    "Historical Exhibit 132": os.path.join(preset_folder, "Historical_Exhibit_room_132.jpg"),
-    "Historical Exhibit 177": os.path.join(preset_folder, "Historical_Exhibit_room_177.jpg"),
-    "Fruit Flies in Farms": os.path.join(preset_folder, "fruit_flies_in_farms_161.jpg")
-}
-
-# -----------------------------
 # HELPER FUNCTION FOR FADE-IN IMAGE/CAPTION
 # -----------------------------
 def fade_in_image_caption(image, caption):
+    """Smoothly display image and caption."""
     st.image(image, caption=caption, width="stretch")
 
 # -----------------------------
 # GENERATE CAPTION TAB
 # -----------------------------
 with generate_tab:
-    st.write("Select a preset image, upload an image, use the camera, or provide an image URL to generate a caption.")
+    st.write("Select a preset image, upload an image, take a photo, or provide an image URL to generate a caption.")
 
-    # Preset selection
-    preset_choice = st.selectbox(
-        "Choose a preset image",
-        ["None"] + list(preset_images.keys())
-    )
-
-    # File upload
+    # Preset selector
+    preset_choice = st.selectbox("Preset Images", [""] + list(preset_images.keys()))
+    
+    # File uploader and camera
     uploaded_file = st.file_uploader("Upload an image", type=["png", "jpg", "jpeg"])
-
+    
     # Camera checkbox
-    camera_checkbox = st.checkbox("Use Camera")
-    camera_image = st.camera_input("Take a photo") if camera_checkbox else None
-
-    # Image URL
+    use_camera = st.checkbox("Use Camera", value=st.session_state.use_camera)
+    st.session_state.use_camera = use_camera
+    
+    camera_image = None
+    if use_camera:
+        camera_image = st.camera_input("Take a photo")
+    
+    # URL input
     image_url = st.text_input("Or enter an image URL", key="text_input")
 
     image = None
 
-    # Load preset image
-    if preset_choice != "None":
-        preset_path = preset_images[preset_choice]
-        if os.path.exists(preset_path):
-            image = Image.open(preset_path)
-        else:
-            st.warning(f"Preset '{preset_choice}' not found")
+    # Load image from preset
+    if preset_choice and preset_choice in preset_images:
+        try:
+            image = Image.open(preset_images[preset_choice])
+        except Exception as e:
+            st.warning(f"Could not load preset image: {e}")
 
-    # Load uploaded image
+    # Load image from upload
     elif uploaded_file:
         image = Image.open(uploaded_file)
-
-    # Load camera image
+    # Load image from camera
     elif camera_image:
         image = Image.open(camera_image)
-
-    # Load from URL
+    # Load image from URL
     elif image_url:
         try:
             response = requests.get(image_url)
@@ -107,7 +112,6 @@ with generate_tab:
         except Exception as e:
             st.warning(f"Could not load image from URL: {e}")
 
-    # Generate caption button
     if image:
         st.image(image, caption="Selected Image", width="stretch")
         if st.button("Generate Caption"):
@@ -160,12 +164,11 @@ with helper_tab:
         2. You can either:
            - Select a preset image,
            - Upload an image,
-           - Take a photo with your camera (check the box),
+           - Take a photo with your camera,
            - Or provide a direct image URL.
         3. Click 'Generate Caption' to create a description of your image using BLIP-1.
         4. The URL box will clear automatically after processing.
         5. Go to the 'Processed Images' tab to view all images you've captioned along with their captions.
 
         The app automatically detects if a GPU is available and uses it; otherwise, it runs on CPU.
-        For image links, only secure URLs (https) will be processed.
         """)
