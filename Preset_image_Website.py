@@ -86,7 +86,7 @@ tab1, tab2, tab3 = st.tabs(["Generate Caption", "Processed Images", "Helper"])
 # =========================================================
 with tab1:
     st.markdown(
-        "Select a preset image, upload an image, use the camera, or provide an image URL to generate a caption."
+        "Select an image or picture from one of the following sources and click generate caption. Options: 1. Select a sample image. 2. Upload a file. 3. Paste a secure image URL into the text box. 4. Take a picture with your camera. "
     )
 
     # ---------- PRESETS ----------
@@ -106,12 +106,7 @@ with tab1:
     if uploaded:
         st.session_state.selected_image = Image.open(uploaded).convert("RGB")
 
-    # ---------- CAMERA ----------
-    use_camera = st.checkbox("Use Camera")
-    if use_camera:
-        camera_img = st.camera_input("Take a photo")
-        if camera_img:
-            st.session_state.selected_image = Image.open(camera_img).convert("RGB")
+    
 
     # ---------- URL ----------
     st.session_state.url_input = st.text_input(
@@ -119,7 +114,12 @@ with tab1:
         value=st.session_state.url_input,
         placeholder="https://raw.githubusercontent.com/..."
     )
-
+# ---------- CAMERA ----------
+    use_camera = st.checkbox("Use Camera")
+    if use_camera:
+        camera_img = st.camera_input("Take a photo")
+        if camera_img:
+            st.session_state.selected_image = Image.open(camera_img).convert("RGB")
     if st.button("Load Image from URL"):
         img = safe(lambda: load_image_from_url(st.session_state.url_input))
         if img:
