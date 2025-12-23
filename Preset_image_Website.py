@@ -22,7 +22,9 @@ def safe(fn):
         return fn()
     except Exception:
         return None
+
 st.title("Image Identification and Captioning")
+
 # ===============================
 # LOAD MODEL (CACHED)
 # ===============================
@@ -42,11 +44,11 @@ processor, model = load_blip()
 PRESETS = {
     "Flies":
         "https://raw.githubusercontent.com/mamillasrisan-lab/Images/refs/heads/main/FF/fruit_flies_in_farms_161.jpg",
-    "vehicle":
+    "Vehicle":
         "https://raw.githubusercontent.com/mamillasrisan-lab/Images/refs/heads/main/CAR/cars_1.jpg",
     "Exhibit":
         "https://raw.githubusercontent.com/mamillasrisan-lab/Images/refs/heads/main/Exhibit/Historical_Exhibit_room_177.jpg",
-    "multiple Objects":
+    "Multiple Objects":
         "https://raw.githubusercontent.com/mamillasrisan-lab/Images/refs/heads/main/HO/House_hold_objects_156.jpg",
     "Fire":
         "https://raw.githubusercontent.com/mamillasrisan-lab/Images/refs/heads/main/WF/wilfires_with_cars_184.jpg",
@@ -97,7 +99,7 @@ tab1, tab2, tab3 = st.tabs(["Generate Caption", "Processed Images", "Instruction
 # TAB 1 — GENERATE
 # ======================================================
 with tab1:
-    # -------------------- NEW INSTRUCTIONS --------------------
+    # -------------------- INSTRUCTIONS --------------------
     st.markdown("""
 Once you choose a source and choose an image, the generate caption button will appear below the source, and when you click the button, the image will be identified and captioned
 """)
@@ -112,9 +114,10 @@ Once you choose a source and choose an image, the generate caption button will a
     cols = st.columns(len(PRESETS))
     for col, (name, url) in zip(cols, PRESETS.items()):
         with col:
-            if st.button(name, key=f"preset_{name}"):
-                img = safe(lambda: load_image_from_url(url))
-                if img:
+            img = safe(lambda: load_image_from_url(url))
+            if img:
+                st.image(img, width=150)
+                if st.button(f"Select {name}", key=f"preset_{name}"):
                     set_image(img, "preset")
 
     st.divider()
@@ -147,7 +150,6 @@ Once you choose a source and choose an image, the generate caption button will a
     # ---------- CAMERA ----------
     st.subheader("Camera")
     use_camera = st.checkbox("Use Camera", key="camera_toggle")
-
     if use_camera:
         camera_img = st.camera_input("Take a picture", key="camera_input")
         if camera_img:
@@ -188,7 +190,7 @@ with tab2:
             st.divider()
 
 # ======================================================
-# TAB 3 — HELPER
+# TAB 3 — INSTRUCTIONS
 # ======================================================
 with tab3:
     st.markdown("""
@@ -198,8 +200,6 @@ with tab3:
 • Click **Generate Caption**  
 • Captions are created using **BLIP Image Captioning**  
 • Results are saved in **Processed Images**  
-
-
 
 This app is optimized for education and research use.
 """)
