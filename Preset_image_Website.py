@@ -22,7 +22,7 @@ def safe(fn):
         return fn()
     except Exception:
         return None
-
+st.title("Image Identification and Captioning")
 # ===============================
 # LOAD MODEL (CACHED)
 # ===============================
