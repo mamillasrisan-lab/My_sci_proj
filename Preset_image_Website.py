@@ -104,7 +104,7 @@ Once you choose a source and choose an image, the generate caption button will a
     st.markdown("4. Allow Access to your camera and take a picture.")
     
     # ---------- PRESETS ----------
-    st.subheader("Preset Images")
+    st.subheader("Sample Images")
     cols = st.columns(len(PRESETS))
     for col, (name, url) in zip(cols, PRESETS.items()):
         with col:
