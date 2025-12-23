@@ -84,10 +84,15 @@ tab1, tab2, tab3 = st.tabs(["Generate Caption", "Processed Images", "Helper"])
 # TAB 1
 # =====================================================
 with tab1:
-    st.markdown("Choose **one source**. Caption appears **only under that source**.")
+    st.markdown("""Choose a source, and the image and the generate caption button will appear below the source.
+    **Options**
+    1. Sample images
+    2. Upload an image from your device
+    3. Paste a secure Image URL into the text box
+    4. Allow Access to your camera nd take a picture.""")
 
     # ---------- PRESETS ----------
-    st.subheader("Preset Images")
+    st.subheader("Sample Images")
     cols = st.columns(len(PRESETS))
 
     for col, (name, url) in zip(cols, PRESETS.items()):
