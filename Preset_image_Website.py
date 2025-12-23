@@ -101,16 +101,34 @@ Once you choose a source and choose an image, the generate caption button will a
     st.markdown("3. Paste a secure Image URL into the text box")
     st.markdown("4. Allow Access to your camera and take a picture.")
 
-    # ---------- PRESETS ----------
-    st.subheader("Sample Images")
-    cols = st.columns(len(PRESETS))
-    for col, (name, url) in zip(cols, PRESETS.items()):
-        with col:
-            if st.button(name, key=f"preset_{name}"):
-                img = safe(lambda: load_image_from_url(url))
-                if img:
-                    set_image(img, "preset")
+   # ---------- PRESETS ----------
+st.subheader("Sample Images")
+cols = st.columns(len(PRESETS))
+placeholders = {}  # store placeholder for each preset
 
+for col, (name, url) in zip(cols, PRESETS.items()):
+    with col:
+        st.button(name, key=f"preset_{name}")  # button for each sample image
+        placeholders[name] = st.empty()  # create a placeholder under the button
+
+# handle clicks separately
+for name, url in PRESETS.items():
+    if st.session_state.get(f"preset_{name}"):  # button was clicked
+        img = safe(lambda: load_image_from_url(url))
+        if img:
+            set_image(img, "preset")
+            # display image and caption button in the placeholder
+            with placeholders[name]:
+                st.image(img, width=300)
+                if st.button(f"Generate Caption", key=f"gen_{name}"):
+                    with st.spinner("Generating caption..."):
+                        caption = safe(lambda: generate_caption(img))
+                    if caption:
+                        st.session_state.processed.append({
+                            "image": img,
+                            "caption": caption
+                        })
+                        st.success(caption)
     st.divider()
 
     # ---------- UPLOAD ----------
