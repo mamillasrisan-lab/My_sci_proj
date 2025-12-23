@@ -127,7 +127,7 @@ Once you choose a source and choose an image, the generate caption button will a
     # ---------- URL ----------
     st.subheader("Image URL")
     st.session_state.url_input = st.text_input(
-        "Paste image URL",
+        "Paste an image URL, then click the button labeled Load Image from URL ",
         value=st.session_state.url_input,
         placeholder="https://raw.githubusercontent.com/..."
     )
