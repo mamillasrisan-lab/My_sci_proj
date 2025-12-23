@@ -54,18 +54,11 @@ PRESETS = {
 # ===============================
 # SESSION STATE
 # ===============================
-if "preset_selected" not in st.session_state or not isinstance(st.session_state.preset_selected, dict):
-    st.session_state.preset_selected = {}
-if "preset_caption" not in st.session_state or not isinstance(st.session_state.preset_caption, dict):
-    st.session_state.preset_caption = {}
 for key, default in {
-    "uploaded_image": None,
-    "uploaded_caption": None,
-    "url_input": "",
-    "url_image": None,
-    "url_caption": None,
-    "camera_image": None,
-    "camera_caption": None
+    "current_image": None,
+    "current_caption": None,
+    "current_source": None,
+    "url_input": ""
 }.items():
     if key not in st.session_state:
         st.session_state[key] = default
@@ -83,6 +76,12 @@ def generate_caption(image):
     with torch.no_grad():
         out = model.generate(**inputs, max_new_tokens=40)
     return processor.decode(out[0], skip_special_tokens=True)
+
+def set_current(img, source):
+    """Set the currently visible image and reset caption"""
+    st.session_state.current_image = img
+    st.session_state.current_source = source
+    st.session_state.current_caption = None
 
 # ===============================
 # UI TABS
@@ -108,32 +107,15 @@ with tab1:
             if st.button(name, key=f"preset_{name}"):
                 img = safe(lambda: load_image_from_url(url))
                 if img:
-                    st.session_state.preset_selected[name] = img
-                    st.session_state.preset_caption[name] = None
-            if name in st.session_state.preset_selected:
-                st.image(st.session_state.preset_selected[name], width=200)
-                if st.button(f"Generate Caption", key=f"gen_{name}"):
-                    with st.spinner("Generating caption..."):
-                        cap = safe(lambda: generate_caption(st.session_state.preset_selected[name]))
-                    st.session_state.preset_caption[name] = cap
-                if st.session_state.preset_caption.get(name):
-                    st.success(st.session_state.preset_caption[name])
+                    set_current(img, f"preset_{name}")
 
     st.divider()
 
     # ---------- UPLOAD ----------
     st.subheader("Upload Image")
-    uploaded = st.file_uploader("Upload", type=["jpg", "png", "jpeg"])
+    uploaded = st.file_uploader("Upload", type=["jpg", "png", "jpeg"], key="upload_uploader")
     if uploaded:
-        st.session_state.uploaded_image = Image.open(uploaded).convert("RGB")
-        st.session_state.uploaded_caption = None
-    if st.session_state.uploaded_image:
-        st.image(st.session_state.uploaded_image, width=200)
-        if st.button("Generate Caption for Uploaded", key="gen_upload"):
-            with st.spinner("Generating caption..."):
-                st.session_state.uploaded_caption = safe(lambda: generate_caption(st.session_state.uploaded_image))
-        if st.session_state.uploaded_caption:
-            st.success(st.session_state.uploaded_caption)
+        set_current(Image.open(uploaded).convert("RGB"), "upload")
 
     st.divider()
 
@@ -147,16 +129,8 @@ with tab1:
     if st.button("Load Image from URL", key="url_load"):
         img = safe(lambda: load_image_from_url(st.session_state.url_input))
         if img:
-            st.session_state.url_image = img
-            st.session_state.url_caption = None
+            set_current(img, "url")
             st.session_state.url_input = ""
-    if st.session_state.url_image:
-        st.image(st.session_state.url_image, width=200)
-        if st.button("Generate Caption for URL", key="gen_url"):
-            with st.spinner("Generating caption..."):
-                st.session_state.url_caption = safe(lambda: generate_caption(st.session_state.url_image))
-        if st.session_state.url_caption:
-            st.success(st.session_state.url_caption)
 
     st.divider()
 
@@ -166,48 +140,38 @@ with tab1:
     if use_camera:
         camera_img = st.camera_input("Take a picture", key="camera_input")
         if camera_img:
-            st.session_state.camera_image = Image.open(camera_img).convert("RGB")
-            st.session_state.camera_caption = None
-    if st.session_state.camera_image:
-        st.image(st.session_state.camera_image, width=200)
-        if st.button("Generate Caption for Camera", key="gen_camera"):
+            set_current(Image.open(camera_img).convert("RGB"), "camera")
+
+    st.divider()
+
+    # ---------- DISPLAY + CAPTION ----------
+    if st.session_state.current_image:
+        st.image(st.session_state.current_image, width=400)
+        if st.button("Generate Caption", key="gen_current"):
             with st.spinner("Generating caption..."):
-                st.session_state.camera_caption = safe(lambda: generate_caption(st.session_state.camera_image))
-        if st.session_state.camera_caption:
-            st.success(st.session_state.camera_caption)
+                st.session_state.current_caption = safe(lambda: generate_caption(st.session_state.current_image))
+        if st.session_state.current_caption:
+            st.success(st.session_state.current_caption)
 
 # ======================================================
 # TAB 2 — PROCESSED IMAGES
 # ======================================================
 with tab2:
-    st.subheader("Processed Images")
-    any_processed = False
-    # Presets
-    for name, cap in st.session_state.preset_caption.items():
-        if cap:
-            st.image(st.session_state.preset_selected[name], width=200)
-            st.markdown(f"**Caption:** {cap}")
+    st.markdown("**Processed Images**")
+    # Keep a simple log of processed images
+    if "processed" not in st.session_state:
+        st.session_state.processed = []
+    if st.session_state.current_caption:
+        st.session_state.processed.append({
+            "image": st.session_state.current_image,
+            "caption": st.session_state.current_caption
+        })
+    if st.session_state.processed:
+        for item in st.session_state.processed:
+            st.image(item["image"], width=200)
+            st.markdown(f"**Caption:** {item['caption']}")
             st.divider()
-            any_processed = True
-    # Uploaded
-    if st.session_state.uploaded_caption:
-        st.image(st.session_state.uploaded_image, width=200)
-        st.markdown(f"**Caption:** {st.session_state.uploaded_caption}")
-        st.divider()
-        any_processed = True
-    # URL
-    if st.session_state.url_caption:
-        st.image(st.session_state.url_image, width=200)
-        st.markdown(f"**Caption:** {st.session_state.url_caption}")
-        st.divider()
-        any_processed = True
-    # Camera
-    if st.session_state.camera_caption:
-        st.image(st.session_state.camera_image, width=200)
-        st.markdown(f"**Caption:** {st.session_state.camera_caption}")
-        st.divider()
-        any_processed = True
-    if not any_processed:
+    else:
         st.info("No processed images yet.")
 
 # ======================================================
