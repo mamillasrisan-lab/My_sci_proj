@@ -88,7 +88,7 @@ with tab1:
     st.markdown("**Options**")
     st.markdown("1. Sample images")
     st.markdown(" 2. Upload an image from your device")
-    st.mardown("3. Paste a secure Image URL into the text box")
+    st.markdown("3. Paste a secure Image URL into the text box")
     st.markdown("4. Allow Access to your camera and take a picture.")
     
 
