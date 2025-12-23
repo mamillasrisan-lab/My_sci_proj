@@ -83,9 +83,7 @@ tab1, tab2, tab3 = st.tabs(["Generate Caption", "Processed Images", "Helper"])
 # TAB 1
 # =====================================================
 with tab1:
-    st.markdown(
-        "Choose **one source** below. The caption will appear **directly under that source only**."
-    )
+    st.markdown("Choose **one source**. Caption appears **only under that source**.")
 
     # ---------- PRESETS ----------
     st.subheader("Preset Images")
@@ -93,18 +91,18 @@ with tab1:
 
     for col, (name, url) in zip(cols, PRESETS.items()):
         with col:
-            if st.button(name):
+            if st.button(name, key=f"preset_{name}"):
                 img = safe(lambda: load_image_from_url(url))
                 if img:
                     set_image(img, "preset")
 
-            if st.session_state.source == "preset" and st.session_state.image:
-                st.image(st.session_state.image, width=300)
-                if st.button("Generate Caption", key="preset_gen"):
-                    st.session_state.caption = generate_caption(st.session_state.image)
+    if st.session_state.source == "preset" and st.session_state.image:
+        st.image(st.session_state.image, width=350)
+        if st.button("Generate Caption", key="preset_generate"):
+            st.session_state.caption = generate_caption(st.session_state.image)
 
-                if st.session_state.caption:
-                    st.success(st.session_state.caption)
+        if st.session_state.caption:
+            st.success(st.session_state.caption)
 
     st.divider()
 
@@ -117,8 +115,8 @@ with tab1:
         set_image(img, "upload")
 
     if st.session_state.source == "upload" and st.session_state.image:
-        st.image(st.session_state.image, width=300)
-        if st.button("Generate Caption", key="upload_gen"):
+        st.image(st.session_state.image, width=350)
+        if st.button("Generate Caption", key="upload_generate"):
             st.session_state.caption = generate_caption(st.session_state.image)
 
         if st.session_state.caption:
@@ -136,8 +134,8 @@ with tab1:
             set_image(img, "url")
 
     if st.session_state.source == "url" and st.session_state.image:
-        st.image(st.session_state.image, width=300)
-        if st.button("Generate Caption", key="url_gen"):
+        st.image(st.session_state.image, width=350)
+        if st.button("Generate Caption", key="url_generate"):
             st.session_state.caption = generate_caption(st.session_state.image)
 
         if st.session_state.caption:
@@ -154,8 +152,8 @@ with tab1:
         set_image(img, "camera")
 
     if st.session_state.source == "camera" and st.session_state.image:
-        st.image(st.session_state.image, width=300)
-        if st.button("Generate Caption", key="camera_gen"):
+        st.image(st.session_state.image, width=350)
+        if st.button("Generate Caption", key="camera_generate"):
             st.session_state.caption = generate_caption(st.session_state.image)
 
         if st.session_state.caption:
@@ -185,12 +183,10 @@ with tab2:
 # =====================================================
 with tab3:
     st.markdown("""
-### Behavior (Fixed)
+### Fixed Issues
 
-✔ Caption appears **only under the source used**  
-✔ No duplication  
-✔ No cross-triggering  
-✔ Streamlit Cloud safe  
-
-Each source controls its **own render zone**.
+✔ No duplicate keys  
+✔ Caption appears under the correct source  
+✔ No UI duplication  
+✔ Stable Streamlit behavior  
 """)
