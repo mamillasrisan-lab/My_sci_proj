@@ -42,7 +42,7 @@ processor, model = load_blip()
 PRESETS = {
     "Flies":
         "https://raw.githubusercontent.com/mamillasrisan-lab/Images/refs/heads/main/FF/fruit_flies_in_farms_161.jpg",
-    "Car":
+    "vehicle":
         "https://raw.githubusercontent.com/mamillasrisan-lab/Images/refs/heads/main/CAR/cars_1.jpg",
     "Exhibit":
         "https://raw.githubusercontent.com/mamillasrisan-lab/Images/refs/heads/main/Exhibit/Historical_Exhibit_room_177.jpg",
@@ -87,7 +87,7 @@ def set_image(img, source):
 # ===============================
 # UI TABS
 # ===============================
-tab1, tab2, tab3 = st.tabs(["Generate Caption", "Processed Images", "Helper"])
+tab1, tab2, tab3 = st.tabs(["Generate Caption", "Processed Images", "Instructions"])
 
 # ======================================================
 # TAB 1 — GENERATE
@@ -195,12 +195,7 @@ with tab3:
 • Captions are created using **BLIP Image Captioning**  
 • Results are saved in **Processed Images**  
 
-### Design goals
-✔ No crashes  
-✔ No visible errors  
-✔ Streamlit Cloud safe  
-✔ Clear UI separation  
-✔ Stable state handling  
+
 
 This app is optimized for education and research use.
 """)
