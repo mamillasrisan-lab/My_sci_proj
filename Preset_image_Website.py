@@ -17,7 +17,7 @@ st.set_page_config(
 # -------------------------------
 # SAFE WRAPPER
 # -------------------------------
-st.title("Blip Image Captioner")
+st.title("Image Captioner")
 def safe(fn):
     try:
         return fn()
