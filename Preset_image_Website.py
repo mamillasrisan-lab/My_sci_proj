@@ -17,7 +17,7 @@ st.set_page_config(
 # -------------------------------
 # SAFE WRAPPER
 # -------------------------------
-st.title("Image Captioner")
+st.title("Image Identification and Captioning")
 def safe(fn):
     try:
         return fn()
@@ -84,7 +84,7 @@ tab1, tab2, tab3 = st.tabs(["Generate Caption", "Processed Images", "Helper"])
 # TAB 1
 # =====================================================
 with tab1:
-    st.markdown("""Choose a source, and the image and the generate caption button will appear below the source.""")
+    st.markdown("""Once you choose a source and choose an image, the generate caption button will appear below the source, and when you click the button, the image will be identified and captioned""")
     st.markdown("**Options**")
     st.markdown("1. Sample images")
     st.markdown(" 2. Upload an image from your device")
