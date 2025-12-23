@@ -54,16 +54,16 @@ PRESETS = {
 # ===============================
 # SESSION STATE
 # ===============================
-if "current_image" not in st.session_state:
-    st.session_state.current_image = None
-if "current_caption" not in st.session_state:
-    st.session_state.current_caption = None
-if "current_source" not in st.session_state:
-    st.session_state.current_source = None
-if "url_input" not in st.session_state:
-    st.session_state.url_input = ""
 if "processed" not in st.session_state:
     st.session_state.processed = []
+if "url_input" not in st.session_state:
+    st.session_state.url_input = ""
+if "current" not in st.session_state:
+    st.session_state.current = {
+        "image": None,
+        "caption": None,
+        "source": None
+    }
 
 # ===============================
 # FUNCTIONS
@@ -80,9 +80,9 @@ def generate_caption(image):
     return processor.decode(out[0], skip_special_tokens=True)
 
 def set_current(img, source):
-    st.session_state.current_image = img
-    st.session_state.current_source = source
-    st.session_state.current_caption = None
+    st.session_state.current["image"] = img
+    st.session_state.current["caption"] = None
+    st.session_state.current["source"] = source
 
 # ===============================
 # UI TABS
@@ -93,7 +93,9 @@ tab1, tab2, tab3 = st.tabs(["Generate Caption", "Processed Images", "Instruction
 # TAB 1 — GENERATE
 # ======================================================
 with tab1:
-    st.markdown("""Once you choose a source and choose an image, the generate caption button will appear below the source, and when you click the button, the image will be identified and captioned""")
+    st.markdown("""
+Once you choose a source and choose an image, the generate caption button will appear below the source, and when you click the button, the image will be identified and captioned
+""")
     st.markdown("**Options**")
     st.markdown("1. Sample images")
     st.markdown("2. Upload an image from your device")
@@ -102,63 +104,99 @@ with tab1:
 
     # ---------- PRESETS ----------
     st.subheader("Sample Images")
-    cols = st.columns(len(PRESETS))
-    for col, (name, url) in zip(cols, PRESETS.items()):
-        with col:
-            if st.button(name, key=f"preset_{name}"):
-                img = safe(lambda: load_image_from_url(url))
-                if img:
-                    set_current(img, f"preset_{name}")
+    preset_container = st.container()
+    with preset_container:
+        cols = st.columns(len(PRESETS))
+        for col, (name, url) in zip(cols, PRESETS.items()):
+            with col:
+                if st.button(name, key=f"preset_{name}"):
+                    img = safe(lambda: load_image_from_url(url))
+                    if img:
+                        set_current(img, f"preset_{name}")
+                # Show selected image for this preset
+                if st.session_state.current["source"] == f"preset_{name}":
+                    st.image(st.session_state.current["image"], width=300)
+                    if st.button("Generate Caption", key=f"gen_{name}"):
+                        with st.spinner("Generating caption..."):
+                            st.session_state.current["caption"] = safe(lambda: generate_caption(st.session_state.current["image"]))
+                        if st.session_state.current["caption"]:
+                            st.success(st.session_state.current["caption"])
+                            st.session_state.processed.append({
+                                "image": st.session_state.current["image"],
+                                "caption": st.session_state.current["caption"]
+                            })
 
     st.divider()
 
     # ---------- UPLOAD ----------
     st.subheader("Upload Image")
-    uploaded = st.file_uploader("Upload", type=["jpg", "png", "jpeg"], key="upload_uploader")
-    if uploaded:
-        set_current(Image.open(uploaded).convert("RGB"), "upload")
+    upload_container = st.container()
+    with upload_container:
+        uploaded = st.file_uploader("Upload", type=["jpg", "png", "jpeg"], key="upload_uploader")
+        if uploaded:
+            set_current(Image.open(uploaded).convert("RGB"), "upload")
+        if st.session_state.current["source"] == "upload":
+            st.image(st.session_state.current["image"], width=300)
+            if st.button("Generate Caption", key="gen_upload"):
+                with st.spinner("Generating caption..."):
+                    st.session_state.current["caption"] = safe(lambda: generate_caption(st.session_state.current["image"]))
+                if st.session_state.current["caption"]:
+                    st.success(st.session_state.current["caption"])
+                    st.session_state.processed.append({
+                        "image": st.session_state.current["image"],
+                        "caption": st.session_state.current["caption"]
+                    })
 
     st.divider()
 
     # ---------- URL ----------
     st.subheader("Image URL")
-    st.session_state.url_input = st.text_input(
-        "Paste image URL",
-        value=st.session_state.url_input,
-        placeholder="https://raw.githubusercontent.com/..."
-    )
-    if st.button("Load Image from URL", key="url_load"):
-        img = safe(lambda: load_image_from_url(st.session_state.url_input))
-        if img:
-            set_current(img, "url")
-            st.session_state.url_input = ""
+    url_container = st.container()
+    with url_container:
+        st.session_state.url_input = st.text_input(
+            "Paste image URL",
+            value=st.session_state.url_input,
+            placeholder="https://raw.githubusercontent.com/..."
+        )
+        if st.button("Load Image from URL", key="url_load"):
+            img = safe(lambda: load_image_from_url(st.session_state.url_input))
+            if img:
+                set_current(img, "url")
+                st.session_state.url_input = ""
+        if st.session_state.current["source"] == "url":
+            st.image(st.session_state.current["image"], width=300)
+            if st.button("Generate Caption", key="gen_url"):
+                with st.spinner("Generating caption..."):
+                    st.session_state.current["caption"] = safe(lambda: generate_caption(st.session_state.current["image"]))
+                if st.session_state.current["caption"]:
+                    st.success(st.session_state.current["caption"])
+                    st.session_state.processed.append({
+                        "image": st.session_state.current["image"],
+                        "caption": st.session_state.current["caption"]
+                    })
 
     st.divider()
 
     # ---------- CAMERA ----------
     st.subheader("Camera")
-    use_camera = st.checkbox("Use Camera", key="camera_toggle")
-    if use_camera:
-        camera_img = st.camera_input("Take a picture", key="camera_input")
-        if camera_img:
-            set_current(Image.open(camera_img).convert("RGB"), "camera")
-
-    st.divider()
-
-    # ---------- DISPLAY + CAPTION ----------
-    if st.session_state.current_image:
-        st.image(st.session_state.current_image, width=400)
-        if st.button("Generate Caption", key="gen_current"):
-            with st.spinner("Generating caption..."):
-                st.session_state.current_caption = safe(lambda: generate_caption(st.session_state.current_image))
-        if st.session_state.current_caption:
-            st.success(st.session_state.current_caption)
-            # Log to processed images
-            if st.session_state.current_image not in [p["image"] for p in st.session_state.processed]:
-                st.session_state.processed.append({
-                    "image": st.session_state.current_image,
-                    "caption": st.session_state.current_caption
-                })
+    camera_container = st.container()
+    with camera_container:
+        use_camera = st.checkbox("Use Camera", key="camera_toggle")
+        if use_camera:
+            camera_img = st.camera_input("Take a picture", key="camera_input")
+            if camera_img:
+                set_current(Image.open(camera_img).convert("RGB"), "camera")
+        if st.session_state.current["source"] == "camera":
+            st.image(st.session_state.current["image"], width=300)
+            if st.button("Generate Caption", key="gen_camera"):
+                with st.spinner("Generating caption..."):
+                    st.session_state.current["caption"] = safe(lambda: generate_caption(st.session_state.current["image"]))
+                if st.session_state.current["caption"]:
+                    st.success(st.session_state.current["caption"])
+                    st.session_state.processed.append({
+                        "image": st.session_state.current["image"],
+                        "caption": st.session_state.current["caption"]
+                    })
 
 # ======================================================
 # TAB 2 — PROCESSED IMAGES
@@ -180,9 +218,8 @@ with tab3:
     st.markdown("""
 ### How this app works
 
-• Choose a **preset image**, **upload**, **camera**, or **URL**  
-• Click **Generate Caption**  
-• Captions are created using **BLIP Image Captioning**  
+• Choose a **Sample image**, **upload**, **camera**, or **URL**  
+• Click **Generate Caption**    
 • Results are saved in **Processed Images**  
 
 This app is optimized for education and research use.
