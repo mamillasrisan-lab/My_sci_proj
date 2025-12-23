@@ -39,7 +39,7 @@ def load_blip():
 processor, model = load_blip()
 
 # ===============================
-# PRESET IMAGES (RAW GITHUB)
+# PRESET IMAGES
 # ===============================
 PRESETS = {
     "Flies": "https://raw.githubusercontent.com/mamillasrisan-lab/Images/refs/heads/main/FF/fruit_flies_in_farms_161.jpg",
@@ -54,17 +54,19 @@ PRESETS = {
 # ===============================
 # SESSION STATE
 # ===============================
-for key, default in {
-    "current_image": None,
-    "current_caption": None,
-    "current_source": None,
-    "url_input": ""
-}.items():
-    if key not in st.session_state:
-        st.session_state[key] = default
+if "current_image" not in st.session_state:
+    st.session_state.current_image = None
+if "current_caption" not in st.session_state:
+    st.session_state.current_caption = None
+if "current_source" not in st.session_state:
+    st.session_state.current_source = None
+if "url_input" not in st.session_state:
+    st.session_state.url_input = ""
+if "processed" not in st.session_state:
+    st.session_state.processed = []
 
 # ===============================
-# IMAGE + CAPTION FUNCTIONS
+# FUNCTIONS
 # ===============================
 def load_image_from_url(url):
     r = requests.get(url, timeout=10)
@@ -78,7 +80,6 @@ def generate_caption(image):
     return processor.decode(out[0], skip_special_tokens=True)
 
 def set_current(img, source):
-    """Set the currently visible image and reset caption"""
     st.session_state.current_image = img
     st.session_state.current_source = source
     st.session_state.current_caption = None
@@ -152,20 +153,18 @@ with tab1:
                 st.session_state.current_caption = safe(lambda: generate_caption(st.session_state.current_image))
         if st.session_state.current_caption:
             st.success(st.session_state.current_caption)
+            # Log to processed images
+            if st.session_state.current_image not in [p["image"] for p in st.session_state.processed]:
+                st.session_state.processed.append({
+                    "image": st.session_state.current_image,
+                    "caption": st.session_state.current_caption
+                })
 
 # ======================================================
 # TAB 2 — PROCESSED IMAGES
 # ======================================================
 with tab2:
-    st.markdown("**Processed Images**")
-    # Keep a simple log of processed images
-    if "processed" not in st.session_state:
-        st.session_state.processed = []
-    if st.session_state.current_caption:
-        st.session_state.processed.append({
-            "image": st.session_state.current_image,
-            "caption": st.session_state.current_caption
-        })
+    st.subheader("Processed Images")
     if st.session_state.processed:
         for item in st.session_state.processed:
             st.image(item["image"], width=200)
