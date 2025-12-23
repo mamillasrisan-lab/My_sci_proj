@@ -55,9 +55,9 @@ PRESETS = {
 # SESSION STATE
 # ===============================
 for key, default in {
-    "image": None,
-    "caption": None,
-    "source": None,
+    "selected_image": None,
+    "selected_source": None,
+    "selected_caption": None,
     "processed": [],
     "url_input": ""
 }.items():
@@ -78,10 +78,10 @@ def generate_caption(image):
         out = model.generate(**inputs, max_new_tokens=40)
     return processor.decode(out[0], skip_special_tokens=True)
 
-def set_image(img, source):
-    st.session_state.image = img
-    st.session_state.caption = None
-    st.session_state.source = source
+def select_image(img, source):
+    st.session_state.selected_image = img
+    st.session_state.selected_source = source
+    st.session_state.selected_caption = None
 
 # ===============================
 # UI TABS
@@ -92,7 +92,6 @@ tab1, tab2, tab3 = st.tabs(["Generate Caption", "Processed Images", "Instruction
 # TAB 1 — GENERATE
 # ======================================================
 with tab1:
-    # -------------------- NEW INSTRUCTIONS --------------------
     st.markdown("""
 Once you choose a source and choose an image, the generate caption button will appear below the source, and when you click the button, the image will be identified and captioned
 """)
@@ -104,38 +103,26 @@ Once you choose a source and choose an image, the generate caption button will a
 
     # ---------- PRESETS ----------
     st.subheader("Sample Images")
-    cols = st.columns(len(PRESETS))
-    placeholders = {}  # store placeholders for each preset
-
-    for col, (name, url) in zip(cols, PRESETS.items()):
-        with col:
-            if st.button(name, key=f"preset_{name}"):
-                img = safe(lambda: load_image_from_url(url))
-                if img:
-                    set_image(img, "preset")
-                    # create placeholder for this preset
-                    placeholders[name] = st.empty()
-
-            # create placeholder if not already
-            if name not in placeholders:
-                placeholders[name] = st.empty()
-
-    # handle clicks and display image + caption button inline
-    for name, placeholder in placeholders.items():
-        if st.session_state.get(f"preset_{name}"):
-            img = safe(lambda: load_image_from_url(PRESETS[name]))
+    for name, url in PRESETS.items():
+        if st.button(name, key=f"preset_{name}"):
+            img = safe(lambda: load_image_from_url(url))
             if img:
-                with placeholder:
-                    st.image(img, width=300)
-                    if st.button(f"Generate Caption", key=f"gen_{name}"):
-                        with st.spinner("Generating caption..."):
-                            caption = safe(lambda: generate_caption(img))
-                        if caption:
-                            st.session_state.processed.append({
-                                "image": img,
-                                "caption": caption
-                            })
-                            st.success(caption)
+                select_image(img, "preset")
+
+        # Display image + generate caption button **only if this image is selected**
+        if st.session_state.selected_source == "preset" and st.session_state.selected_image:
+            if st.session_state.selected_image == safe(lambda: load_image_from_url(url)):
+                st.image(st.session_state.selected_image, width=300)
+                if st.button(f"Generate Caption", key=f"gen_{name}"):
+                    with st.spinner("Generating caption..."):
+                        caption = safe(lambda: generate_caption(st.session_state.selected_image))
+                    if caption:
+                        st.session_state.selected_caption = caption
+                        st.session_state.processed.append({
+                            "image": st.session_state.selected_image,
+                            "caption": caption
+                        })
+                        st.success(caption)
 
     st.divider()
 
@@ -144,16 +131,17 @@ Once you choose a source and choose an image, the generate caption button will a
     uploaded = st.file_uploader("Upload", type=["jpg", "png", "jpeg"])
     if uploaded:
         img = Image.open(uploaded).convert("RGB")
-        set_image(img, "upload")
+        select_image(img, "upload")
 
-    if st.session_state.source == "upload" and st.session_state.image:
-        st.image(st.session_state.image, width=400)
+    if st.session_state.selected_source == "upload" and st.session_state.selected_image:
+        st.image(st.session_state.selected_image, width=400)
         if st.button("Generate Caption", key="gen_upload"):
             with st.spinner("Generating caption..."):
-                caption = safe(lambda: generate_caption(st.session_state.image))
+                caption = safe(lambda: generate_caption(st.session_state.selected_image))
             if caption:
+                st.session_state.selected_caption = caption
                 st.session_state.processed.append({
-                    "image": st.session_state.image,
+                    "image": st.session_state.selected_image,
                     "caption": caption
                 })
                 st.success(caption)
@@ -171,17 +159,18 @@ Once you choose a source and choose an image, the generate caption button will a
     if st.button("Load Image from URL", key="url_load"):
         img = safe(lambda: load_image_from_url(st.session_state.url_input))
         if img:
-            set_image(img, "url")
+            select_image(img, "url")
             st.session_state.url_input = ""
 
-    if st.session_state.source == "url" and st.session_state.image:
-        st.image(st.session_state.image, width=400)
+    if st.session_state.selected_source == "url" and st.session_state.selected_image:
+        st.image(st.session_state.selected_image, width=400)
         if st.button("Generate Caption", key="gen_url"):
             with st.spinner("Generating caption..."):
-                caption = safe(lambda: generate_caption(st.session_state.image))
+                caption = safe(lambda: generate_caption(st.session_state.selected_image))
             if caption:
+                st.session_state.selected_caption = caption
                 st.session_state.processed.append({
-                    "image": st.session_state.image,
+                    "image": st.session_state.selected_image,
                     "caption": caption
                 })
                 st.success(caption)
@@ -196,16 +185,17 @@ Once you choose a source and choose an image, the generate caption button will a
         camera_img = st.camera_input("Take a picture", key="camera_input")
         if camera_img:
             img = Image.open(camera_img).convert("RGB")
-            set_image(img, "camera")
+            select_image(img, "camera")
 
-    if st.session_state.source == "camera" and st.session_state.image:
-        st.image(st.session_state.image, width=400)
+    if st.session_state.selected_source == "camera" and st.session_state.selected_image:
+        st.image(st.session_state.selected_image, width=400)
         if st.button("Generate Caption", key="gen_camera"):
             with st.spinner("Generating caption..."):
-                caption = safe(lambda: generate_caption(st.session_state.image))
+                caption = safe(lambda: generate_caption(st.session_state.selected_image))
             if caption:
+                st.session_state.selected_caption = caption
                 st.session_state.processed.append({
-                    "image": st.session_state.image,
+                    "image": st.session_state.selected_image,
                     "caption": caption
                 })
                 st.success(caption)
