@@ -54,9 +54,11 @@ PRESETS = {
 # ===============================
 # SESSION STATE
 # ===============================
+if "preset_selected" not in st.session_state or not isinstance(st.session_state.preset_selected, dict):
+    st.session_state.preset_selected = {}
+if "preset_caption" not in st.session_state or not isinstance(st.session_state.preset_caption, dict):
+    st.session_state.preset_caption = {}
 for key, default in {
-    "preset_selected": {},  # stores selected image per preset
-    "preset_caption": {},   # stores caption per preset
     "uploaded_image": None,
     "uploaded_caption": None,
     "url_input": "",
@@ -91,7 +93,6 @@ tab1, tab2, tab3 = st.tabs(["Generate Caption", "Processed Images", "Instruction
 # TAB 1 — GENERATE
 # ======================================================
 with tab1:
-    # -------------------- INSTRUCTIONS --------------------
     st.markdown("""Once you choose a source and choose an image, the generate caption button will appear below the source, and when you click the button, the image will be identified and captioned""")
     st.markdown("**Options**")
     st.markdown("1. Sample images")
@@ -99,6 +100,7 @@ with tab1:
     st.markdown("3. Paste a secure Image URL into the text box")
     st.markdown("4. Allow Access to your camera and take a picture.")
 
+    # ---------- PRESETS ----------
     st.subheader("Sample Images")
     cols = st.columns(len(PRESETS))
     for col, (name, url) in zip(cols, PRESETS.items()):
@@ -108,7 +110,6 @@ with tab1:
                 if img:
                     st.session_state.preset_selected[name] = img
                     st.session_state.preset_caption[name] = None
-            # Display image + generate button only if selected
             if name in st.session_state.preset_selected:
                 st.image(st.session_state.preset_selected[name], width=200)
                 if st.button(f"Generate Caption", key=f"gen_{name}"):
