@@ -93,10 +93,16 @@ tab1, tab2, tab3 = st.tabs(["Generate Caption", "Processed Images", "Helper"])
 # TAB 1 — GENERATE
 # ======================================================
 with tab1:
-    st.markdown(
-        "Select a **preset image**, **upload**, **use the camera**, or **paste an image URL**."
-    )
-
+    # -------------------- NEW INSTRUCTIONS --------------------
+    st.markdown("""
+Once you choose a source and choose an image, the generate caption button will appear below the source, and when you click the button, the image will be identified and captioned
+""")
+    st.markdown("**Options**")
+    st.markdown("1. Sample images")
+    st.markdown("2. Upload an image from your device")
+    st.markdown("3. Paste a secure Image URL into the text box")
+    st.markdown("4. Allow Access to your camera and take a picture.")
+    
     # ---------- PRESETS ----------
     st.subheader("Preset Images")
     cols = st.columns(len(PRESETS))
