@@ -18,15 +18,6 @@ st.set_page_config(
 st.title("Image Identification and Captioning")
 
 # ===============================
-# SAFE ERROR HANDLER
-# ===============================
-def safe(fn):
-    try:
-        return fn()
-    except Exception:
-        return None
-
-# ===============================
 # LOAD MODEL (CACHED)
 # ===============================
 @st.cache_resource
@@ -67,7 +58,7 @@ if "url_input" not in st.session_state:
     st.session_state.url_input = ""
 
 # ===============================
-# FUNCTIONS
+# HELPERS
 # ===============================
 def load_image_from_url(url):
     r = requests.get(url, timeout=10)
@@ -134,20 +125,19 @@ below that source.
     for col, (name, url) in zip(cols, PRESETS.items()):
         with col:
             if st.button(name, key=f"preset_{name}"):
-                img = safe(lambda: load_image_from_url(url))
-                if img:
-                    set_active(img, f"preset_{name}")
+                img = load_image_from_url(url)
+                set_active(img, f"preset_{name}")
 
             if st.session_state.active_source == f"preset_{name}":
                 st.image(st.session_state.active_image, width=250)
+
                 if st.button("Generate Caption", key=f"gen_{name}"):
                     with st.spinner("Generating caption..."):
-                        st.session_state.active_caption = generate_caption(
-                            st.session_state.active_image
-                        )
+                        caption = generate_caption(st.session_state.active_image)
+                        st.session_state.active_caption = caption
                         st.session_state.processed.append({
                             "image": st.session_state.active_image,
-                            "caption": st.session_state.active_caption
+                            "caption": caption
                         })
 
                 if st.session_state.active_caption:
@@ -158,21 +148,23 @@ below that source.
 
     # ---------- UPLOAD ----------
     st.subheader("Upload Image")
-    uploaded = st.file_uploader("Upload", type=["jpg", "png", "jpeg"])
+    uploaded = st.file_uploader("Upload", type=["jpg", "png", "jpeg"], key="upload")
+
     if uploaded:
         set_active(Image.open(uploaded).convert("RGB"), "upload")
 
     if st.session_state.active_source == "upload":
         st.image(st.session_state.active_image, width=300)
+
         if st.button("Generate Caption", key="gen_upload"):
             with st.spinner("Generating caption..."):
-                st.session_state.active_caption = generate_caption(
-                    st.session_state.active_image
-                )
+                caption = generate_caption(st.session_state.active_image)
+                st.session_state.active_caption = caption
                 st.session_state.processed.append({
                     "image": st.session_state.active_image,
-                    "caption": st.session_state.active_caption
+                    "caption": caption
                 })
+
         if st.session_state.active_caption:
             st.success(st.session_state.active_caption)
             tts_button(st.session_state.active_caption)
@@ -181,28 +173,33 @@ below that source.
 
     # ---------- URL ----------
     st.subheader("Image URL")
-    st.session_state.url_input = st.text_input(
+
+    url = st.text_input(
         "Paste image URL",
-        value=st.session_state.url_input
+        value=st.session_state.url_input,
+        key="url_input_box"
     )
 
-    if st.button("Load Image from URL"):
-        img = safe(lambda: load_image_from_url(st.session_state.url_input))
-        if img:
+    if st.button("Load Image from URL", key="load_url"):
+        try:
+            img = load_image_from_url(url)
             set_active(img, "url")
             st.session_state.url_input = ""
+        except Exception:
+            st.error("Failed to load image from URL")
 
     if st.session_state.active_source == "url":
         st.image(st.session_state.active_image, width=300)
+
         if st.button("Generate Caption", key="gen_url"):
             with st.spinner("Generating caption..."):
-                st.session_state.active_caption = generate_caption(
-                    st.session_state.active_image
-                )
+                caption = generate_caption(st.session_state.active_image)
+                st.session_state.active_caption = caption
                 st.session_state.processed.append({
                     "image": st.session_state.active_image,
-                    "caption": st.session_state.active_caption
+                    "caption": caption
                 })
+
         if st.session_state.active_caption:
             st.success(st.session_state.active_caption)
             tts_button(st.session_state.active_caption)
@@ -211,24 +208,25 @@ below that source.
 
     # ---------- CAMERA ----------
     st.subheader("Camera")
-    use_camera = st.checkbox("Use Camera", value=False)
+    use_camera = st.checkbox("Use Camera", key="camera_toggle")
 
     if use_camera:
-        camera_img = st.camera_input("Take a picture")
+        camera_img = st.camera_input("Take a picture", key="camera_input")
         if camera_img:
             set_active(Image.open(camera_img).convert("RGB"), "camera")
 
     if st.session_state.active_source == "camera":
         st.image(st.session_state.active_image, width=300)
+
         if st.button("Generate Caption", key="gen_camera"):
             with st.spinner("Generating caption..."):
-                st.session_state.active_caption = generate_caption(
-                    st.session_state.active_image
-                )
+                caption = generate_caption(st.session_state.active_image)
+                st.session_state.active_caption = caption
                 st.session_state.processed.append({
                     "image": st.session_state.active_image,
-                    "caption": st.session_state.active_caption
+                    "caption": caption
                 })
+
         if st.session_state.active_caption:
             st.success(st.session_state.active_caption)
             tts_button(st.session_state.active_caption)
@@ -254,5 +252,5 @@ with tab3:
 • Choose an image source  
 • Click **Generate Caption**  
 • Use **🔊 Read Caption Aloud** to hear it  
-• View history in **Processed Images**  
+• View history in **Processed Images**
 """)
