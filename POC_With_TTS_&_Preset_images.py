@@ -254,10 +254,5 @@ with tab3:
 • Choose an image source  
 • Click **Generate Caption**  
 • Use **🔊 Read Caption Aloud** to hear it  
-• View history in **Processed Images**
-
-✔ Python 3.13  
-✔ Streamlit Cloud safe  
-✔ No extra installs  
-✔ Stable UI  
+• View history in **Processed Images**  
 """)
