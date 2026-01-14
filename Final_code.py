@@ -175,7 +175,7 @@ below that source.
     st.subheader("Image URL")
 
     url = st.text_input(
-        "Paste image URL",
+        "Paste image URL (Only works with secure image URLS)",
         value=st.session_state.url_input,
         key="url_input_box"
     )
