@@ -35,6 +35,7 @@ processor, model = load_blip()
 # ===============================
 PRESETS = {
     "Flies": "https://raw.githubusercontent.com/mamillasrisan-lab/Images/refs/heads/main/FF/fruit_flies_in_farms_135.jpg",
+    "Celebrity": "https://raw.githubusercontent.com/mamillasrisan-lab/Images/refs/heads/main/celebritie/celebrities_2.jpg",
     "Vehicle": "https://raw.githubusercontent.com/mamillasrisan-lab/Images/refs/heads/main/CAR/cars_1.jpg",
     "Exhibit": "https://raw.githubusercontent.com/mamillasrisan-lab/Images/refs/heads/main/Exhibit/Historical_Exhibit_room_177.jpg",
     "Multiple Objects": "https://raw.githubusercontent.com/mamillasrisan-lab/Images/refs/heads/main/HO/House_hold_objects_156.jpg",
