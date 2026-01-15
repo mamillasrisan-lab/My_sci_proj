@@ -5,7 +5,7 @@ from io import BytesIO
 import torch
 from transformers import BlipForConditionalGeneration, AutoProcessor
 import streamlit.components.v1 as components
-
+#this is final working code as on 14/01/2026 9 pm
 # ===============================
 # PAGE CONFIG
 # ===============================
